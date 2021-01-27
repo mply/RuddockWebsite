@@ -91,6 +91,40 @@ def add_members_confirm_submit():
   flask.flash("An unexpected error was encountered. Please find an IMSS rep.")
   return flask.redirect(flask.url_for('admin.add_members'))
 
+@blueprint.route('/members/edit/<int:user_id>')
+@login_required(Permissions.USERS)
+def edit_member(user_id):
+  """Provides an interface for editing a user's info."""
+  # Load current details.
+  user = member_utils.get_member(user_id)
+  if user is None:
+    flask.flash("Invalid request.")
+    return flask.redirect(flask.url_for('admin.add_members'))
+  return flask.render_template('edit_member.html', member=user)
+
+@blueprint.route('/members/edit/<int:user_id>/submit',
+    methods=['POST'])
+@login_required(Permissions.USERS)
+def edit_member_submit(user_id):
+  """Submission endpoint for editing a member."""
+  fname = flask.request.form.get('fname', '')
+  lname = flask.request.form.get('lname', '')
+  matriculate_year = flask.request.form.get('matriculate_year', '')
+  grad_year = flask.request.form.get('grad_year', '')
+  uid = flask.request.form.get('uid', '')
+  email = flask.request.form.get('email', '')
+  membership_desc = flask.request.form.get('membership_desc', '')
+
+  # Check that data was valid.
+  if member_helpers.NewMember.edit_member(user_id, fname, lname, matriculate_year, grad_year,
+      uid, email, membership_desc):
+    flask.flash("Success!")
+    return flask.redirect(flask.url_for('admin.add_members'))
+  else:
+    flask.flash("Encountered unexpected error. Try again?")
+    return flask.redirect(flask.url_for('admin.edit_member',
+      user_id=user_id))
+
 @blueprint.route('/positions/assignments')
 @login_required(Permissions.USERS)
 def manage_positions():

@@ -107,6 +107,91 @@ class NewMember:
       # Don't set self.membership_desc, so we can print what the error was later.
     return
 
+  def edit_member(user_id, fname, lname, matriculate_year, grad_year,
+      uid, email, membership_desc):
+    """
+    Changes member info in the database. Assumes data has already been validated.
+    Returns True if successful, otherwise False.
+    """
+    print(user_id, fname, lname, matriculate_year, grad_year,
+      uid, email, membership_desc)
+
+    # Validate data.
+    # Find all errors, don't just stop at the first one found.
+    flash_errors=True
+    is_valid = True
+    if not validation_utils.validate_name(fname, flash_errors):
+      is_valid = False
+    if not validation_utils.validate_name(lname, flash_errors):
+      is_valid = False
+    if not validation_utils.validate_year(matriculate_year, flash_errors):
+      is_valid = False
+    if not validation_utils.validate_year(grad_year, flash_errors):
+      is_valid = False
+    if not validation_utils.validate_uid(uid, flash_errors):
+      is_valid = False
+    if not validation_utils.validate_email(email, flash_errors):
+      is_valid = False
+    if not is_valid:
+      return False
+
+    """
+    # Skip if id does not exist.
+    if not validation_utils.check_uid_exists(uid):
+      print('false1')
+      return False
+    """
+
+    # Search for membership type.
+    query1 = sqlalchemy.text("""
+      SELECT member_type, membership_desc_short
+      FROM membership_types
+      WHERE membership_desc = :d
+        OR membership_desc_short = :d
+      """)
+    result1 = flask.g.db.execute(query1, d=membership_desc).first()
+    if result1 is not None:
+      tempmember_type = result1['member_type']
+      # tempmembership_desc = result1['membership_desc_short']
+    else:
+      tempmember_type = None
+
+    # Update member type. No return in this block if successful.
+    query2 = sqlalchemy.text("""
+      UPDATE members
+      SET member_type = :mt
+      WHERE user_id = :i
+      """)
+    try:
+      flask.g.db.execute(query2,
+          mt=tempmember_type,
+          i=user_id)
+    except Exception:
+      return False
+
+    # Updates all other info.
+    query = sqlalchemy.text("""
+      UPDATE members
+      SET first_name = :first_name,
+        last_name = :last_name,
+        matriculation_year = :matriculation_year,
+        graduation_year = :graduation_year,
+        uid = :uid, email = :email
+      WHERE user_id = :i
+      """)
+    try:
+      flask.g.db.execute(query, first_name=fname,
+          last_name=lname,
+          matriculation_year=matriculate_year,
+          graduation_year=grad_year,
+          uid=uid,
+          email=email,
+          i=user_id)
+      return True
+    except Exception:
+      return False
+
+
 class NewMemberList:
   """
   Class containing all data for adding one or more new members. This class is a
